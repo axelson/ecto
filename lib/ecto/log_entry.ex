@@ -48,11 +48,7 @@ defmodule Ecto.LogEntry do
       source: source
     } = entry
 
-    params =
-      Enum.map(params, fn
-        %Ecto.Query.Tagged{value: value} -> value
-        value -> value
-      end)
+    params = Enum.map(params, &decode_value/1)
 
     [
       "QUERY",
@@ -73,6 +69,21 @@ defmodule Ecto.LogEntry do
 
   defp ok_error({:ok, _}), do: "OK"
   defp ok_error({:error, _}), do: "ERROR"
+
+  defp decode_value(value) when is_list(value) do
+    Enum.map(value, &decode_value/1)
+  end
+
+  defp decode_value(binary) when is_binary(binary) do
+    case Ecto.UUID.cast(binary) do
+      {:ok, uuid} -> uuid
+      :error -> binary
+    end
+  end
+
+  defp decode_value(%Ecto.Query.Tagged{value: value}), do: value
+
+  defp decode_value(value), do: value
 
   defp ok_source(nil), do: ""
   defp ok_source(source), do: " source=#{inspect(source)}"
